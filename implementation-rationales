@@ -1,0 +1,16 @@
+Having reduced to a four-century cycle:
+Get which century.  If the century-elapsed count is >= 3, use special-case
+handling for the fourth (skip directly to the four-year-cycle stage). For the
+other three possibilities, adjust if need be for non-leap-year in 91 (if
+year of interest is 91 or >= 92, which is to say the fouryear-elapsed count is
+21 or >=22).
+
+That means we can write separate leap-year handler and non-leap-year handler,
+and use a four-year-cycle-handler to stitch them together, with a
+century-handler stitching those together and a four-century handler matching
+those.  Since the pattern doesn't continue, we can stop there.
+
+Four year cycles start on year zero.  That way, arithmetic is doubly 
+simplified: No special cases for the extra day, since it occurs in the last
+month of the last year, and the year value can easily be a years-elapsed
+value, which is easier for implementer.

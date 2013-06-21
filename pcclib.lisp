@@ -34,7 +34,7 @@
 (defconstant days-in-400y (1+ (* days-in-century 4)))
 
 (defun leap-years (year)
-  "Returns the number of leap years after 0PCC up to and including year.
+  "Returns the number of leap years from 0PCC up to (but not including!) year.
   This will be negative if year is."
   (let ((lys 0))
     (multiple-value-bind (q r) (truncate year 400)
@@ -49,14 +49,14 @@
           (incf lys q)
           (if (>= r 3) (incf lys))
           (if (<= r -1) (decf lys)))))
-    (if (leap-year-p year) (if (< year 0) (1+ lys) (1- lys)) lys)))
+    (if (and (leap-year-p year) (> year 0)) (1- lys) lys)))
 
 (defun leap-year-p (year)
   "Returns T if year is a leap year in the PCC, NIL else"
   (or
-   (= (mod year 400) 391)
    (and (= (mod year 4) 3)
-        (/= (mod year 100) 91))))
+        (/= (mod year 100) 91))
+   (= (mod year 400) 391)))
 
 (defun encode-universal-time (second minute hour date month year)
   "The time values specified in decoded format (pcc) are converted
@@ -64,6 +64,7 @@
   (let ((encoded-time (+ (secondcount second minute hour date month year)
                          universal-offset)))
     ;next line is necessary iff universal-time must be >=0
+    ;note that this is the case in all CLs I know.
     (assert (typep encoded-time '(integer 0)))
     encoded-time))
 
@@ -77,7 +78,9 @@
            (type (mod 60) second)
            (type (mod 60) minute)
            (type (mod 24) hour))
-  (if (= month 14) (if (leap-year-p year) (assert (typep date '(integer 1 2))) (assert (= date 1))))
+  (if (= month 14) (if (leap-year-p year)
+                       (assert (typep date '(integer 1 2)))
+                       (assert (= date 1))))
   (let* ((days (+ (1- date)
                   (* days-in-month (1- month))
                   (* year 365)
@@ -87,13 +90,6 @@
                           (* minute seconds-in-minute)
                           second)))
     encoded-time))
-
-(defun truncate-for-date (number &optional (divisor 1))
-  "Acts as a cross between TRUNCATE and FLOOR: Return number (or number/divisor)
-  as an integer, rounded toward 0.  The second returned value is
-  (mod number divisor)"
-  (multiple-value-bind (quotient remainder) (truncate number divisor)
-    (values quotient (mod remainder divisor))))
 
 (defun month-day-to-week-and-day (monthday)
   "Takes a day of the month in the PCC and returns the week of the month and
@@ -133,7 +129,11 @@
     (multiple-value-bind (year4 month date)
         (decode-day-of-fouryear fouryearday)
       (let ((year (+ (* fouryear 4) year4)))
-        (values year month date)))))
+        ;;there has got to be a way to do this that isn't an ugly hack, but ICBA
+        (if (and (not fourth-century-p)
+                 (equalp `(,year ,month ,date) '(91 14 2)))
+            (values 92 1 1)
+            (values year month date))))))
 
 (defun decode-day-of-400y (400yday)
   "Takes a day of a four-hundred-year cycle, and returns the year of the cycle,
@@ -152,20 +152,33 @@
    the following six values: second, minute, hour, day of month, month, year.
    Month 14 is used to refer to the holiday(s) at the end of the year."
   (let ((universal-pcc (- universal-time universal-offset)))
-    (multiple-value-bind (day-count remainder)
-        (truncate universal-pcc seconds-in-day)
-      (setf remainder (mod remainder seconds-in-day))
-      (let ((hour (truncate remainder seconds-in-hour))
-            (minute (truncate (mod remainder seconds-in-hour) seconds-in-minute))
-            (second (mod remainder seconds-in-minute)))
+    (multiple-value-bind (day-count second-count)
+        (floor universal-pcc seconds-in-day)
+      (let ((hour (truncate second-count seconds-in-hour))
+            (minute (truncate (mod second-count seconds-in-hour) seconds-in-minute))
+            (second (mod second-count seconds-in-minute)))
         (declare (type (mod 60) second)
                  (type (mod 60) minute)
                  (type (mod 24) hour))
         (multiple-value-bind (400y-count day400)
-            (truncate day-count days-in-400y)
-          (setf day400 (mod day400 days-in-400y))
-          (if (< 400y-count 0) (decf 400y-count))
+            (floor day-count days-in-400y)
           (multiple-value-bind (year400 month date)
               (decode-day-of-400y day400)
             (let ((year (+ (* 400 400y-count) year400)))
               (values second minute hour date month year))))))))
+
+
+(defun test-negative-years () "if successful, return nowt"
+        (remove-if #'(lambda (x) (getf x :correctp))
+        (loop for year from -108 to -1 append
+             (loop for month from 1 to 13 append
+                  (loop for date from 1 to 28 collecting
+                       `(:date ,date :month ,month :year ,year
+                               :correctp ,(equalp
+                                           (multiple-value-list
+                                            (decode-universal-time
+                                             (encode-universal-time 0 0 0 date month year)))
+                                           `(0 0 0 ,date ,month ,year))))))))
+
+(defun test-encdec (date month year) "checks the result of decoding the encoding"
+       (decode-universal-time (encode-universal-time 0 0 0 date month year)))

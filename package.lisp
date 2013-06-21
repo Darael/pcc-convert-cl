@@ -6,4 +6,7 @@
    #:libpcc
    #:pcclib
    #:pcc)
-  (:use #:cl))
+  (:use #:cl)
+  (:shadow
+   #:encode-universal-time
+   #:decode-universal-time))

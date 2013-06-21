@@ -16,7 +16,7 @@
 (in-package :org.tpchq.pcclib)
 
 (defconstant universal-offset (cl:encode-universal-time 0 0 0 22 12 2008)
-  "The value of universal-time at 000/00/00 00:00:00 PCC")
+  "The value of universal-time at 000/01/01 00:00:00 PCC")
 (defconstant days-in-week 7)
 (defconstant weeks-in-month 4)
 (defconstant seconds-in-minute 60)
@@ -63,6 +63,7 @@
   to universal time, which is returned"
   (let ((encoded-time (+ (secondcount second minute hour date month year)
                          universal-offset)))
+    ;next line is necessary iff universal-time must be >=0
     (assert (typep encoded-time '(integer 0)))
     encoded-time))
 
@@ -117,7 +118,7 @@
           (floor fouryearday days-in-year)
         (multiple-value-bind (month date)
             (decode-day-of-year yearday)
-          (values year (1+ month) date)))))
+          (values year month date)))))
 
 (defun decode-day-of-century (centuryday &optional fourth-century-p)
   "Takes a day of a century and returns year, month, day.  Treats
@@ -155,7 +156,7 @@
         (truncate universal-pcc seconds-in-day)
       (setf remainder (mod remainder seconds-in-day))
       (let ((hour (truncate remainder seconds-in-hour))
-            (minute (truncate remainder seconds-in-minute))
+            (minute (truncate (mod remainder seconds-in-hour) seconds-in-minute))
             (second (mod remainder seconds-in-minute)))
         (declare (type (mod 60) second)
                  (type (mod 60) minute)
@@ -166,5 +167,5 @@
           (if (< 400y-count 0) (decf 400y-count))
           (multiple-value-bind (year400 month date)
               (decode-day-of-400y day400)
-            (let ((year (+ 400y-count year400)))
+            (let ((year (+ (* 400 400y-count) year400)))
               (values second minute hour date month year))))))))

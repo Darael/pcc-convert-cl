@@ -2,9 +2,8 @@
 
 (asdf:defsystem #:pcc-convert-cl
   :serial t
-  :description "Describe pcc-convert-cl here"
+  :description "A system for converting between PCC and Gregorian calendars"
   :author "Vinothan Shankar"
-  :license "Specify license here"
+  :license "Plan Standard Licence 1.0/GPL3.0"
   :components ((:file "package")
                (:file "pcc-convert-cl")))
-

@@ -1,4 +1,4 @@
-;;;PCClib - a library for dealing with dates and times in the Planning 
+;;;PCClib - a library for dealing with dates and times in the Planning
 ;;;Committee Calendar, as used be TPC.  Copyright 2011 Gregorian,
 ;;;002PCC The Planning Committee.  Released under the Plan Standard Licence.
 ;;;Version 1.0
@@ -42,13 +42,13 @@
       (if (>= r 391) (incf lys))
       (if (<= r -9) (decf lys))
       (multiple-value-bind (q r) (truncate year 100)
-	(decf lys q)
-	(if (>= r 91) (decf lys))
-	(if (<= r -9) (incf lys))
-	(multiple-value-bind (q r) (truncate year 4)
-	  (incf lys q)
-	  (if (>= r 3) (incf lys))
-	  (if (<= r -1) (decf lys)))))
+        (decf lys q)
+        (if (>= r 91) (decf lys))
+        (if (<= r -9) (incf lys))
+        (multiple-value-bind (q r) (truncate year 4)
+          (incf lys q)
+          (if (>= r 3) (incf lys))
+          (if (<= r -1) (decf lys)))))
     (if (leap-year-p year) (if (< year 0) (1+ lys) (1- lys)) lys)))
 
 (defun leap-year-p (year)
@@ -56,13 +56,13 @@
   (or
    (= (mod year 400) 391)
    (and (= (mod year 4) 3)
-	(/= (mod year 100) 91))))
+        (/= (mod year 100) 91))))
 
 (defun encode-universal-time (second minute hour date month year)
   "The time values specified in decoded format (pcc) are converted
   to universal time, which is returned"
   (let ((encoded-time (+ (secondcount second minute hour date month year)
-			 universal-offset)))
+                         universal-offset)))
     (assert (typep encoded-time '(integer 0)))
     encoded-time))
 
@@ -72,19 +72,19 @@
   CL time-handling forms, use encode-universal-time instead, which
   wraps this with an offset from CL's universal-time"
   (declare (type (integer 1 14) month)
-	   (type (integer 1 28) date)
-	   (type (mod 60) second)
-	   (type (mod 60) minute)
-	   (type (mod 24) hour))
+           (type (integer 1 28) date)
+           (type (mod 60) second)
+           (type (mod 60) minute)
+           (type (mod 24) hour))
   (if (= month 14) (if (leap-year-p year) (assert (typep date '(integer 1 2))) (assert (= date 1))))
   (let* ((days (+ (1- date)
-		  (* days-in-month (1- month))
-		  (* year 365)
-		  (leap-years year)))
-	 (encoded-time (+ (* days seconds-in-day)
-			  (* hour seconds-in-hour)
-			  (* minute seconds-in-minute)
-			  second)))
+                  (* days-in-month (1- month))
+                  (* year 365)
+                  (leap-years year)))
+         (encoded-time (+ (* days seconds-in-day)
+                          (* hour seconds-in-hour)
+                          (* minute seconds-in-minute)
+                          second)))
     encoded-time))
 
 (defun truncate-for-date (number &optional (divisor 1))
@@ -114,25 +114,25 @@
   (if (= fouryearday (* days-in-year 4))
       (values 3 14 2)
       (multiple-value-bind (year yearday)
-	  (floor fouryearday days-in-year)
-	(multiple-value-bind (month date) 
-	    (decode-day-of-year yearday)
-	  (values year (1+ month) date)))))
+          (floor fouryearday days-in-year)
+        (multiple-value-bind (month date)
+            (decode-day-of-year yearday)
+          (values year (1+ month) date)))))
 
 (defun decode-day-of-century (centuryday &optional fourth-century-p)
   "Takes a day of a century and returns year, month, day.  Treats
   as the fourth of a four-century cycle (with an extra leap year)
   if fourth-century-p is set"
   (declare (type (integer 0 36524 ) centuryday); 36524 is days-in-century
-	   (type (boolean) fourth-century-p))
+           (type (boolean) fourth-century-p))
   (if (and (not fourth-century-p) (>= centuryday (* days-in-4y 23)))
       (incf centuryday))
   (multiple-value-bind (fouryear fouryearday)
       (truncate centuryday days-in-4y)
     (multiple-value-bind (year4 month date)
-	(decode-day-of-fouryear fouryearday)
+        (decode-day-of-fouryear fouryearday)
       (let ((year (+ (* fouryear 4) year4)))
-	(values year month date)))))
+        (values year month date)))))
 
 (defun decode-day-of-400y (400yday)
   "Takes a day of a four-hundred-year cycle, and returns the year of the cycle,
@@ -142,9 +142,9 @@
       (truncate 400yday days-in-century)
     (if (= century 4) (progn (decf century) (setf centuryday days-in-century)))
     (multiple-value-bind (century-year month date)
-	(decode-day-of-century centuryday (= century 3))
+        (decode-day-of-century centuryday (= century 3))
       (let ((year (+ (* 100 century) century-year)))
-	(values year month date)))))
+        (values year month date)))))
 
 (defun decode-universal-time (universal-time)
   "Converts a universal-time to decoded format for the PCC, returning
@@ -152,19 +152,19 @@
    Month 14 is used to refer to the holiday(s) at the end of the year."
   (let ((universal-pcc (- universal-time universal-offset)))
     (multiple-value-bind (day-count remainder)
-	(truncate universal-pcc seconds-in-day)
+        (truncate universal-pcc seconds-in-day)
       (setf remainder (mod remainder seconds-in-day))
       (let ((hour (truncate remainder seconds-in-hour))
-	    (minute (truncate remainder seconds-in-minute))
-	    (second (mod remainder seconds-in-minute)))
-	(declare (type (mod 60) second)
-		 (type (mod 60) minute)
-		 (type (mod 24) hour))
-	(multiple-value-bind (400y-count day400)
-	    (truncate day-count days-in-400y)
-	  (setf day400 (mod day400 days-in-400y))
-	  (if (< 400y-count 0) (decf 400y-count))
-	  (multiple-value-bind (year400 month date)
-	      (decode-day-of-400y day400)
-	    (let ((year (+ 400y-count year400)))
-	      (values second minute hour date month year))))))))
+            (minute (truncate remainder seconds-in-minute))
+            (second (mod remainder seconds-in-minute)))
+        (declare (type (mod 60) second)
+                 (type (mod 60) minute)
+                 (type (mod 24) hour))
+        (multiple-value-bind (400y-count day400)
+            (truncate day-count days-in-400y)
+          (setf day400 (mod day400 days-in-400y))
+          (if (< 400y-count 0) (decf 400y-count))
+          (multiple-value-bind (year400 month date)
+              (decode-day-of-400y day400)
+            (let ((year (+ 400y-count year400)))
+              (values second minute hour date month year))))))))

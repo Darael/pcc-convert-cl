@@ -36,6 +36,7 @@
 (defun leap-years (year)
   "Returns the number of leap years from 0PCC up to (but not including!) year.
   This will be negative if year is."
+  (declare (type (integer) year))
   (let ((lys 0))
     (multiple-value-bind (q r) (truncate year 400)
       (incf lys q)
@@ -61,6 +62,11 @@
 (defun encode-universal-time (second minute hour date month year)
   "The time values specified in decoded format (pcc) are converted
   to universal time, which is returned"
+  (declare (type (mod 60) second minute)
+           (type (mod 24) hour)
+           (type (integer 1 28) date)
+           (type (integer 1 14) month)
+           (type (integer) year))
   (let ((encoded-time (+ (secondcount second minute hour date month year)
                          universal-offset)))
     ;next line is necessary iff universal-time must be >=0
@@ -94,6 +100,7 @@
 (defun month-day-to-week-and-day (monthday)
   "Takes a day of the month in the PCC and returns the week of the month and
   day of the week in same"
+  (declare (type (integer 1 28) monthday))
   (multiple-value-bind (weeks days) (truncate (1- monthday) 7)
     (values (1+ weeks) (1+ days))))
 
@@ -104,11 +111,12 @@
       (truncate yearday days-in-month)
     (values (1+ month) (1+ monthday))))
 
-(defun decode-day-of-fouryear (fouryearday)
+(defun decode-day-of-fouryear (fouryearday &optional exception-p)
   "Takes a day-of-four-year-cycle (zero-based) and returns year, month, day.
   Considers a cycle to start on year zero."
-  (declare (type (integer 0 1460) fouryearday));1460 is (1- days-in-4y)
-  (if (= fouryearday (* days-in-year 4))
+  (declare (type (integer 0 1460) fouryearday);1460 is (1- days-in-4y)
+           (type (boolean) exception-p))
+  (if (and exception-p (= fouryearday (1- days-in-4y)))
       (values 3 14 2)
       (multiple-value-bind (year yearday)
           (floor fouryearday days-in-year)
@@ -123,17 +131,13 @@
   (declare (type (integer 0 36524 ) centuryday); 36524 is days-in-century
            (type (boolean) fourth-century-p))
   (if (and (not fourth-century-p) (>= centuryday (* days-in-4y 23)))
-      (incf centuryday))
+      (incf centuryday));breaking functional style here, but best way.
   (multiple-value-bind (fouryear fouryearday)
       (truncate centuryday days-in-4y)
     (multiple-value-bind (year4 month date)
-        (decode-day-of-fouryear fouryearday)
+        (decode-day-of-fouryear fouryearday fourth-century-p)
       (let ((year (+ (* fouryear 4) year4)))
-        ;;there has got to be a way to do this that isn't an ugly hack, but ICBA
-        (if (and (not fourth-century-p)
-                 (equalp `(,year ,month ,date) '(91 14 2)))
-            (values 92 1 1)
-            (values year month date))))))
+            (values year month date)))))
 
 (defun decode-day-of-400y (400yday)
   "Takes a day of a four-hundred-year cycle, and returns the year of the cycle,
@@ -151,6 +155,7 @@
   "Converts a universal-time to decoded format for the PCC, returning
    the following six values: second, minute, hour, day of month, month, year.
    Month 14 is used to refer to the holiday(s) at the end of the year."
+  (declare (type (real 0) universal-time)) ;as long as CL keeps things that way.
   (let ((universal-pcc (- universal-time universal-offset)))
     (multiple-value-bind (day-count second-count)
         (floor universal-pcc seconds-in-day)
